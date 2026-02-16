@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Task Manager - Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>📚 Task Manager</h1>
+            </div>
+            <div class="header-right">
+                <span id="userGreeting" class="user-greeting"></span>
+                <button id="logoutBtn" class="btn-logout">Logout</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="dashboard-grid">
+                <!-- Add Task Section -->
+                <section class="add-task-section">
+                    <h2>Add New Task</h2>
+                    <form id="taskForm">
+                        <div class="form-group">
+                            <label for="title">Task Title *</label>
+                            <input type="text" id="title" name="title" required placeholder="e.g., Complete Math Assignment">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Description</label>
+                            <textarea id="description" name="description" placeholder="Add task details..."></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="subject">Subject</label>
+                                <select id="subject" name="subject">
+                                    <option value="">Select Subject</option>
+                                    <option value="mathematics">Mathematics</option>
+                                    <option value="science">Science</option>
+                                    <option value="english">English</option>
+                                    <option value="history">History</option>
+                                    <option value="programming">Programming</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="priority">Priority</label>
+                                <select id="priority" name="priority">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="dueDate">Due Date *</label>
+                            <input type="date" id="dueDate" name="dueDate" required>
+                        </div>
+
+                        <button type="submit" class="btn-primary">Add Task</button>
+                    </form>
+                </section>
+
+                <!-- Tasks List Section -->
+                <section class="tasks-section">
+                    <h2>Your Tasks</h2>
+                    
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="pending">Pending</button>
+                        <button class="filter-btn" data-filter="completed">Completed</button>
+                    </div>
+
+                    <div id="tasksList" class="tasks-list">
+                        <p class="empty-message">No tasks yet. Add one to get started!</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Edit Task</h2>
+            <form id="editForm">
+                <input type="hidden" id="editTaskId">
+                
+                <div class="form-group">
+                    <label for="editTitle">Task Title *</label>
+                    <input type="text" id="editTitle" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="editDescription">Description</label>
+                    <textarea id="editDescription"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editSubject">Subject</label>
+                        <select id="editSubject">
+                            <option value="">Select Subject</option>
+                            <option value="mathematics">Mathematics</option>
+                            <option value="science">Science</option>
+                            <option value="english">English</option>
+                            <option value="history">History</option>
+                            <option value="programming">Programming</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editPriority">Priority</label>
+                        <select id="editPriority">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="editDueDate">Due Date *</label>
+                    <input type="date" id="editDueDate" required>
+                </div>
+
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
