@@ -1,258 +1,303 @@
-let allTasks = [];
-let currentFilter = 'all';
+const express = require('express');
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
+const path = require('path');
+const { initializeDatabase, createUser, getUserByUsername, getUserById, createTask, getTasksByUserId, getTaskById, updateTask, deleteTask } = require('./database');
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadUserData();
-    loadTasks();
-    setupEventListeners();
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve static files (CSS, JS, images) from root directory
+// Exclude server files and database files
+app.use(express.static(__dirname, {
+  dotfiles: 'ignore',
+  index: false
+}));
+
+// Session configuration
+app.use(session({
+  secret: 'your-secret-key-change-this-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: false, // Set to true if using HTTPS
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Serve HTML files
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
 });
 
-function setupEventListeners() {
-    document.getElementById('taskForm').addEventListener('submit', handleAddTask);
-    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-    document.getElementById('editForm').addEventListener('submit', handleEditTask);
-    document.querySelector('.close').addEventListener('click', closeEditModal);
+app.get('/login.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
 
-    // Filter buttons
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            currentFilter = e.target.dataset.filter;
-            renderTasks();
-        });
-    });
+app.get('/register.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'register.html'));
+});
 
-    // Close modal when clicking outside
-    window.addEventListener('click', (e) => {
-        const modal = document.getElementById('editModal');
-        if (e.target === modal) {
-            closeEditModal();
-        }
-    });
+app.get('/dashboard.html', (req, res) => {
+  if (!req.session.userId) {
+    return res.redirect('/login.html');
+  }
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
+});
+
+// Authentication middleware
+function requireAuth(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  next();
 }
 
-async function loadUserData() {
-    try {
-        const response = await fetch('/api/user');
-        if (!response.ok) throw new Error('Not authenticated');
+// API Routes
 
-        const user = await response.json();
-        document.getElementById('userGreeting').textContent = `Welcome, ${user.firstName}!`;
-    } catch (error) {
-        window.location.href = '/login.html';
+// Register
+app.post('/api/register', async (req, res) => {
+  try {
+    const { firstName, lastName, email, username, password, confirmPassword } = req.body;
+
+    // Validation
+    if (!firstName || !lastName || !email || !username || !password) {
+      return res.status(400).json({ error: 'All fields are required' });
     }
-}
 
-async function loadTasks() {
-    try {
-        const response = await fetch('/api/tasks');
-        if (!response.ok) throw new Error('Failed to load tasks');
-
-        allTasks = await response.json();
-        renderTasks();
-    } catch (error) {
-        console.error('Error loading tasks:', error);
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match' });
     }
-}
 
-function renderTasks() {
-    const tasksList = document.getElementById('tasksList');
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // Check if user already exists
+    const existingUser = await getUserByUsername(username);
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const userId = await createUser(firstName, lastName, email, username, hashedPassword);
+
+    // Set session
+    req.session.userId = userId;
+    req.session.username = username;
+
+    res.json({ success: true, userId });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+// Login
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    // Get user
+    const user = await getUserByUsername(username);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    // Check password
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    // Set session
+    req.session.userId = user.id;
+    req.session.username = user.username;
+
+    res.json({ success: true, userId: user.id });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Logout
+app.post('/api/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Logout failed' });
+    }
+    res.json({ success: true });
+  });
+});
+
+// Get current user
+app.get('/api/user', requireAuth, async (req, res) => {
+  try {
+    const user = await getUserById(req.session.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({ error: 'Failed to get user' });
+  }
+});
+
+// Tasks routes
+
+// Get all tasks for current user
+app.get('/api/tasks', requireAuth, async (req, res) => {
+  try {
+    const tasks = await getTasksByUserId(req.session.userId);
+    res.json(tasks);
+  } catch (error) {
+    console.error('Get tasks error:', error);
+    res.status(500).json({ error: 'Failed to get tasks' });
+  }
+});
+
+// Create task
+app.post('/api/tasks', requireAuth, async (req, res) => {
+  try {
+    const { title, description, dueDate, subject, priority } = req.body;
+
+    if (!title || !dueDate) {
+      return res.status(400).json({ error: 'Title and due date are required' });
+    }
+
+    const taskId = await createTask(
+      req.session.userId,
+      title,
+      description || null,
+      dueDate,
+      subject || null,
+      priority || 'medium'
+    );
+
+    res.json({ success: true, taskId });
+  } catch (error) {
+    console.error('Create task error:', error);
+    res.status(500).json({ error: 'Failed to create task' });
+  }
+});
+
+// Get single task
+app.get('/api/tasks/:id', requireAuth, async (req, res) => {
+  try {
+    const task = await getTaskById(req.params.id);
     
-    let filteredTasks = allTasks;
-    if (currentFilter === 'pending') {
-        filteredTasks = allTasks.filter(task => !task.completed);
-    } else if (currentFilter === 'completed') {
-        filteredTasks = allTasks.filter(task => task.completed);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
     }
 
-    if (filteredTasks.length === 0) {
-        tasksList.innerHTML = '<p class="empty-message">No tasks found.</p>';
-        return;
+    // Verify task belongs to user
+    if (task.userId !== req.session.userId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
-    tasksList.innerHTML = filteredTasks
-        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-        .map(task => createTaskElement(task))
-        .join('');
+    res.json(task);
+  } catch (error) {
+    console.error('Get task error:', error);
+    res.status(500).json({ error: 'Failed to get task' });
+  }
+});
 
-    // Add event listeners
-    document.querySelectorAll('.btn-complete').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const taskId = btn.dataset.taskId;
-            const task = allTasks.find(t => t.id === parseInt(taskId));
-            handleCompleteTask(taskId, !task.completed);
-        });
+// Update task
+app.put('/api/tasks/:id', requireAuth, async (req, res) => {
+  try {
+    const taskId = req.params.id;
+    const { title, description, dueDate, subject, priority, completed } = req.body;
+
+    // Verify task exists and belongs to user
+    const task = await getTaskById(taskId);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    if (task.userId !== req.session.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Update task
+    await updateTask(
+      taskId,
+      title || task.title,
+      description !== undefined ? description : task.description,
+      dueDate || task.dueDate,
+      subject !== undefined ? subject : task.subject,
+      priority || task.priority,
+      completed !== undefined ? completed : task.completed
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update task error:', error);
+    res.status(500).json({ error: 'Failed to update task' });
+  }
+});
+
+// Delete task
+app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
+  try {
+    const taskId = req.params.id;
+
+    // Verify task exists and belongs to user
+    const task = await getTaskById(taskId);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    if (task.userId !== req.session.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    await deleteTask(taskId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete task error:', error);
+    res.status(500).json({ error: 'Failed to delete task' });
+  }
+});
+
+// Initialize database and start server
+initializeDatabase()
+  .then(() => {
+    app.listen(PORT, (err) => {
+      if (err) {
+        console.error('Error starting server:', err);
+        process.exit(1);
+      }
+      console.log(`Server is running on http://localhost:${PORT}`);
+      console.log('Database initialized');
+      console.log('\n✓ Open your browser and go to: http://localhost:3000');
     });
+  })
+  .catch((err) => {
+    console.error('Failed to initialize database:', err);
+    console.error('\n💡 Solution: Delete the corrupted tasks.db file and restart the server.');
+    console.error('   The database will be recreated automatically.');
+    process.exit(1);
+  });
 
-    document.querySelectorAll('.btn-edit').forEach(btn => {
-        btn.addEventListener('click', () => openEditModal(btn.dataset.taskId));
-    });
+// Handle uncaught errors
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  console.error('\n⚠️  Make sure you have run: npm install');
+});
 
-    document.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', () => handleDeleteTask(btn.dataset.taskId));
-    });
-}
-
-function createTaskElement(task) {
-    const dueDate = new Date(task.dueDate);
-    const today = new Date();
-    const isOverdue = dueDate < today && !task.completed;
-
-    return `
-        <div class="task-item ${task.completed ? 'completed' : ''} ${task.priority}-priority">
-            <div class="task-header">
-                <h3 class="task-title">${escapeHtml(task.title)}</h3>
-            </div>
-            
-            <div class="task-badges">
-                ${task.subject ? `<span class="badge badge-subject">${escapeHtml(task.subject)}</span>` : ''}
-                <span class="badge badge-priority-${task.priority}">${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}</span>
-                ${isOverdue ? '<span class="badge" style="background-color: #fee2e2; color: #dc2626;">Overdue</span>' : ''}
-            </div>
-
-            ${task.description ? `<p class="task-description">${escapeHtml(task.description)}</p>` : ''}
-
-            <div class="task-meta">
-                📅 Due: ${dueDate.toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric' 
-                })}
-            </div>
-
-            <div class="task-actions">
-                <button class="btn-small btn-complete" data-task-id="${task.id}">
-                    ${task.completed ? 'Undo' : 'Complete'}
-                </button>
-                <button class="btn-small btn-edit" data-task-id="${task.id}">Edit</button>
-                <button class="btn-small btn-delete" data-task-id="${task.id}">Delete</button>
-            </div>
-        </div>
-    `;
-}
-
-async function handleAddTask(e) {
-    e.preventDefault();
-    const title = document.getElementById('title').value;
-    const description = document.getElementById('description').value;
-    const subject = document.getElementById('subject').value;
-    const priority = document.getElementById('priority').value;
-    const dueDate = document.getElementById('dueDate').value;
-
-    try {
-        const response = await fetch('/api/tasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, description, subject, priority, dueDate })
-        });
-
-        if (response.ok) {
-            document.getElementById('taskForm').reset();
-            loadTasks();
-        } else {
-            alert('Failed to create task');
-        }
-    } catch (error) {
-        console.error('Error creating task:', error);
-    }
-}
-
-async function handleCompleteTask(taskId, completed) {
-    const task = allTasks.find(t => t.id === parseInt(taskId));
-    try {
-        const response = await fetch(`/api/tasks/${taskId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...task, completed })
-        });
-
-        if (response.ok) {
-            loadTasks();
-        }
-    } catch (error) {
-        console.error('Error updating task:', error);
-    }
-}
-
-async function handleDeleteTask(taskId) {
-    if (!confirm('Are you sure you want to delete this task?')) return;
-
-    try {
-        const response = await fetch(`/api/tasks/${taskId}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            loadTasks();
-        }
-    } catch (error) {
-        console.error('Error deleting task:', error);
-    }
-}
-
-function openEditModal(taskId) {
-    const task = allTasks.find(t => t.id === parseInt(taskId));
-    if (!task) return;
-
-    document.getElementById('editTaskId').value = task.id;
-    document.getElementById('editTitle').value = task.title;
-    document.getElementById('editDescription').value = task.description || '';
-    document.getElementById('editSubject').value = task.subject || '';
-    document.getElementById('editPriority').value = task.priority;
-    document.getElementById('editDueDate').value = task.dueDate;
-
-    document.getElementById('editModal').classList.add('show');
-}
-
-function closeEditModal() {
-    document.getElementById('editModal').classList.remove('show');
-}
-
-async function handleEditTask(e) {
-    e.preventDefault();
-    const taskId = document.getElementById('editTaskId').value;
-    const title = document.getElementById('editTitle').value;
-    const description = document.getElementById('editDescription').value;
-    const subject = document.getElementById('editSubject').value;
-    const priority = document.getElementById('editPriority').value;
-    const dueDate = document.getElementById('editDueDate').value;
-    const task = allTasks.find(t => t.id === parseInt(taskId));
-
-    try {
-        const response = await fetch(`/api/tasks/${taskId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                title, 
-                description, 
-                subject, 
-                priority, 
-                dueDate,
-                completed: task.completed 
-            })
-        });
-
-        if (response.ok) {
-            closeEditModal();
-            loadTasks();
-        }
-    } catch (error) {
-        console.error('Error updating task:', error);
-    }
-}
-
-async function handleLogout() {
-    try {
-        await fetch('/api/logout', { method: 'POST' });
-        window.location.href = '/login.html';
-    } catch (error) {
-        console.error('Error logging out:', error);
-    }
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
