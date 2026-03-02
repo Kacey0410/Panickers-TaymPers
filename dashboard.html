@@ -11,76 +11,231 @@
         <!-- Header -->
         <header class="header">
             <div class="header-left">
-                <h1>📚 Task Manager</h1>
+                <h1><a href="/dashboard.html" class="header-title-link">📚 Task Manager</a></h1>
             </div>
             <div class="header-right">
                 <span id="userGreeting" class="user-greeting"></span>
+                <button id="themeToggle" class="btn-theme-toggle" aria-label="Toggle dark mode">
+                    🌙
+                </button>
                 <button id="logoutBtn" class="btn-logout">Logout</button>
             </div>
         </header>
 
         <!-- Main Content -->
         <main class="main-content">
+            <section class="welcome-section">
+                <div class="welcome-text">
+                    <h2 id="welcomeTitle">Welcome back, student!</h2>
+                    <p class="welcome-subtitle">
+                        Choose what you want to do today.
+                    </p>
+                </div>
+
+                <div class="welcome-actions">
+                    <button class="welcome-card" data-target-tab="tabTasks">
+                        <div class="welcome-card-icon">📝</div>
+                        <div class="welcome-card-title">Manage Tasks</div>
+                        <p class="welcome-card-text">
+                            Create, edit, and track assignments with deadlines.
+                        </p>
+                    </button>
+
+                    <button class="welcome-card" data-target-tab="tabCalendar">
+                        <div class="welcome-card-icon">📅</div>
+                        <div class="welcome-card-title">Check Calendar</div>
+                        <p class="welcome-card-text">
+                            View all deadlines on a simple calendar.
+                        </p>
+                    </button>
+
+                    <button class="welcome-card" data-target-tab="tabAbout">
+                        <div class="welcome-card-icon">ℹ️</div>
+                        <div class="welcome-card-title">About the app</div>
+                        <p class="welcome-card-text">
+                            See how this tool helps you stay organized.
+                        </p>
+                    </button>
+                </div>
+            </section>
+
             <div class="dashboard-grid">
-                <!-- Add Task Section -->
-                <section class="add-task-section">
-                    <h2>Add New Task</h2>
-                    <form id="taskForm">
-                        <div class="form-group">
-                            <label for="title">Task Title *</label>
-                            <input type="text" id="title" name="title" required placeholder="e.g., Complete Math Assignment">
+                <!-- Tasks & creation tab panel -->
+                <section
+                    id="tabTasks"
+                    class="tab-panel"
+                    role="tabpanel"
+                    aria-labelledby="tabTasksButton"
+                    hidden
+                >
+                    <div class="tab-panel-grid">
+                        <!-- Add Task Section -->
+                        <div class="add-task-section">
+                            <div class="section-header">
+                                <h2>Create a new task</h2>
+                                <p class="section-subtitle">
+                                    Add what you need to do and when it’s due. We’ll handle the organizing.
+                                </p>
+                            </div>
+                            <form id="taskForm">
+                                <div class="form-group">
+                                    <label for="title">Task Title *</label>
+                                    <input type="text" id="title" name="title" required placeholder="e.g., Chemistry lab report">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="description">Description</label>
+                                    <textarea id="description" name="description" placeholder="Add details like page numbers, links, or notes."></textarea>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="subject">Subject</label>
+                                        <select id="subject" name="subject">
+                                            <option value="">Select Subject</option>
+                                            <option value="mathematics">Mathematics</option>
+                                            <option value="science">Science</option>
+                                            <option value="english">English</option>
+                                            <option value="history">History</option>
+                                            <option value="programming">Programming</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="priority">Priority</label>
+                                        <select id="priority" name="priority">
+                                            <option value="low">Low</option>
+                                            <option value="medium" selected>Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="dueDate">Due Date *</label>
+                                            <input type="date" id="dueDate" name="dueDate" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="dueTime">Due Time</label>
+                                            <input type="time" id="dueTime" name="dueTime" step="900">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn-primary">Save Task</button>
+                            </form>
                         </div>
 
-                        <div class="form-group">
-                            <label for="description">Description</label>
-                            <textarea id="description" name="description" placeholder="Add task details..."></textarea>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="subject">Subject</label>
-                                <select id="subject" name="subject">
-                                    <option value="">Select Subject</option>
-                                    <option value="mathematics">Mathematics</option>
-                                    <option value="science">Science</option>
-                                    <option value="english">English</option>
-                                    <option value="history">History</option>
-                                    <option value="programming">Programming</option>
-                                    <option value="other">Other</option>
-                                </select>
+                        <!-- Tasks List Section -->
+                        <div class="tasks-section">
+                            <div class="section-header tasks-header">
+                                <div>
+                                    <h2>Your task list</h2>
+                                    <p class="section-subtitle">See what’s coming up and what you’ve already crushed.</p>
+                                </div>
+                                <div class="tasks-header-meta">
+                                    <span class="tasks-header-icon" title="Calendar overview">📅</span>
+                                    <span class="tasks-header-text">Synced with calendar</span>
+                                </div>
+                            </div>
+                            
+                            <div class="filter-buttons">
+                                <button class="filter-btn active" data-filter="all">All</button>
+                                <button class="filter-btn" data-filter="pending">Pending</button>
+                                <button class="filter-btn" data-filter="completed">Completed</button>
                             </div>
 
-                            <div class="form-group">
-                                <label for="priority">Priority</label>
-                                <select id="priority" name="priority">
-                                    <option value="low">Low</option>
-                                    <option value="medium" selected>Medium</option>
-                                    <option value="high">High</option>
-                                </select>
+                            <div id="tasksList" class="tasks-list">
+                                <p class="empty-message">No tasks yet. Create your first one on the left.</p>
                             </div>
                         </div>
-
-                        <div class="form-group">
-                            <label for="dueDate">Due Date *</label>
-                            <input type="date" id="dueDate" name="dueDate" required>
-                        </div>
-
-                        <button type="submit" class="btn-primary">Add Task</button>
-                    </form>
+                    </div>
                 </section>
 
-                <!-- Tasks List Section -->
-                <section class="tasks-section">
-                    <h2>Your Tasks</h2>
-                    
-                    <div class="filter-buttons">
-                        <button class="filter-btn active" data-filter="all">All</button>
-                        <button class="filter-btn" data-filter="pending">Pending</button>
-                        <button class="filter-btn" data-filter="completed">Completed</button>
-                    </div>
+                <!-- Calendar tab panel -->
+                <section
+                    id="tabCalendar"
+                    class="tab-panel"
+                    role="tabpanel"
+                    aria-labelledby="tabCalendarButton"
+                    hidden
+                >
+                    <div class="calendar-section">
+                        <div class="section-header calendar-header">
+                            <div class="calendar-title-group">
+                                <span class="calendar-main-icon" aria-hidden="true">📅</span>
+                                <div>
+                                    <h2>Deadline calendar</h2>
+                                    <p class="section-subtitle">Tap on any day to see what’s due and plan your study sessions.</p>
+                                </div>
+                            </div>
+                            <div class="calendar-controls">
+                                <button type="button" id="prevMonthBtn" class="calendar-nav-btn" aria-label="Previous month">‹</button>
+                                <div id="calendarMonthLabel" class="calendar-month-label"></div>
+                                <button type="button" id="nextMonthBtn" class="calendar-nav-btn" aria-label="Next month">›</button>
+                            </div>
+                        </div>
 
-                    <div id="tasksList" class="tasks-list">
-                        <p class="empty-message">No tasks yet. Add one to get started!</p>
+                        <div class="calendar-grid">
+                            <div class="calendar-weekdays">
+                                <span>Sun</span>
+                                <span>Mon</span>
+                                <span>Tue</span>
+                                <span>Wed</span>
+                                <span>Thu</span>
+                                <span>Fri</span>
+                                <span>Sat</span>
+                            </div>
+                            <div id="calendarDays" class="calendar-days"></div>
+                        </div>
+
+                        <div class="calendar-legend">
+                            <span class="legend-item">
+                                <span class="legend-dot legend-dot-has-tasks"></span>
+                                <span>Has tasks</span>
+                            </span>
+                            <span class="legend-item">
+                                <span class="legend-dot legend-dot-today"></span>
+                                <span>Today</span>
+                            </span>
+                        </div>
+
+                        <div class="calendar-day-tasks">
+                            <h3 id="selectedDateLabel" class="calendar-day-title">Tasks on selected date</h3>
+                            <div id="calendarTasksList" class="calendar-tasks-list">
+                                <p class="empty-message small">Select a date to see its tasks.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- About tab panel -->
+                <section
+                    id="tabAbout"
+                    class="tab-panel"
+                    role="tabpanel"
+                    aria-labelledby="tabAboutButton"
+                    hidden
+                >
+                    <div class="about-section">
+                        <h2>About this app</h2>
+                        <p>
+                            This student task manager is designed to make it easier to juggle classes,
+                            assignments, quizzes, and projects in one place.
+                        </p>
+                        <ul class="about-list">
+                            <li><strong>Manage Tasks</strong>: Create tasks with subjects, priorities, dates, and times.</li>
+                            <li><strong>Calendar View</strong>: See all of your deadlines on a calendar so you can plan ahead.</li>
+                            <li><strong>Smart Reminders</strong>: Get notified when deadlines are getting close (while the app is open).</li>
+                            <li><strong>Day / Night mode</strong>: Switch themes to match your study vibe.</li>
+                        </ul>
+                        <p>
+                            Start by choosing one of the tiles above: manage today’s tasks, or check the calendar to
+                            see what’s coming up next.
+                        </p>
                     </div>
                 </section>
             </div>
@@ -130,8 +285,16 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="editDueDate">Due Date *</label>
-                    <input type="date" id="editDueDate" required>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editDueDate">Due Date *</label>
+                            <input type="date" id="editDueDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editDueTime">Due Time</label>
+                            <input type="time" id="editDueTime" step="900">
+                        </div>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn-primary">Save Changes</button>
