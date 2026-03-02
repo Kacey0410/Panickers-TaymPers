@@ -1,11 +1,60 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-const db = new sqlite3.Database('tasks.db');
+let db;
 
-// Initialize database
+// Initialize database connection
 function initializeDatabase() {
+  return new Promise((resolve, reject) => {
+    // Check if database file exists and is corrupted
+    const dbPath = path.join(__dirname, 'tasks.db');
+    
+    // Create database connection
+    db = new sqlite3.Database(dbPath, (err) => {
+      if (err) {
+        console.error('Error opening database:', err);
+        // If database is corrupted, try to delete and recreate
+        if (err.code === 'SQLITE_NOTADB' || err.errno === 26) {
+          console.log('⚠️  Database file is corrupted. Attempting to recreate...');
+          try {
+            if (fs.existsSync(dbPath)) {
+              fs.unlinkSync(dbPath);
+              console.log('✓ Deleted corrupted database file');
+            }
+            // Retry connection
+            db = new sqlite3.Database(dbPath, (retryErr) => {
+              if (retryErr) {
+                reject(retryErr);
+              } else {
+                createTables(resolve, reject);
+              }
+            });
+          } catch (deleteErr) {
+            reject(deleteErr);
+          }
+        } else {
+          reject(err);
+        }
+      } else {
+        createTables(resolve, reject);
+      }
+    });
+  });
+}
+
+// Create database tables
+function createTables(resolve, reject) {
   db.serialize(() => {
+    // Enable foreign key constraints
+    db.run('PRAGMA foreign_keys = ON', (err) => {
+      if (err) {
+        console.error('Error enabling foreign keys:', err);
+        reject(err);
+        return;
+      }
+    });
+    
     // Users table
     db.run(`
       CREATE TABLE IF NOT EXISTS users (
@@ -17,7 +66,13 @@ function initializeDatabase() {
         password TEXT NOT NULL,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `);
+    `, (err) => {
+      if (err) {
+        console.error('Error creating users table:', err);
+        reject(err);
+        return;
+      }
+    });
 
     // Tasks table
     db.run(`
@@ -33,7 +88,15 @@ function initializeDatabase() {
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
       )
-    `);
+    `, (err) => {
+      if (err) {
+        console.error('Error creating tasks table:', err);
+        reject(err);
+        return;
+      }
+      console.log('✓ Database tables created successfully');
+      resolve();
+    });
   });
 }
 
@@ -65,6 +128,15 @@ function getUserByUsername(username) {
     db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, row) => {
       if (err) reject(err);
       else resolve(row);
+    });
+  });
+}
+
+function getAllUsers() {
+  return new Promise((resolve, reject) => {
+    db.all(`SELECT id, firstName, lastName, email, username, createdAt FROM users ORDER BY createdAt DESC`, [], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows || []);
     });
   });
 }
@@ -127,14 +199,29 @@ function deleteTask(id) {
   });
 }
 
+function closeDatabase() {
+  return new Promise((resolve, reject) => {
+    if (db) {
+      db.close((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
+}
+
 module.exports = {
   initializeDatabase,
   createUser,
   getUserById,
   getUserByUsername,
+  getAllUsers,
   createTask,
   getTasksByUserId,
   getTaskById,
   updateTask,
-  deleteTask
+  deleteTask,
+  closeDatabase
 };
